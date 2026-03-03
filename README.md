@@ -106,3 +106,19 @@ GitHub Actions workflow runs backend tests and frontend lint/build checks.
 - Offline repository now includes checksum verification and cache limit enforcement with oldest-first eviction.
 - Android UI baseline completed for Channels/Player/Profile/Settings with interactive controls and in-app navigation wiring.
 - Recommendations service now falls back to listening-history aggregation when explicit model rows are absent.
+
+
+## Android Studio/Gradle JVM note (Windows)
+
+If Android Studio shows: *"It is not possible to use the currently selected Gradle JVM..."*
+
+1. Open **Settings → Build, Execution, Deployment → Build Tools → Gradle**.
+2. Set **Gradle JDK = Embedded JDK 17** (or another valid local JDK 17 installation).
+3. Run wrapper commands from `android-app/`:
+
+```bash
+./gradlew --version
+./gradlew tasks
+```
+
+This repository includes Gradle Wrapper scripts/config (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.properties`) pinned to Gradle 8.7 for AGP 8.5.x compatibility. In binary-restricted PR systems, regenerate `gradle-wrapper.jar` locally with `gradle wrapper --gradle-version 8.7`.

@@ -9,3 +9,11 @@ node_modules/
 # env
 .env
 .env.local
+
+# Android/Gradle
+.gradle/
+**/build/
+local.properties
+
+# Wrapper binary (excluded for binary-restricted PR environments)
+android-app/gradle/wrapper/gradle-wrapper.jar
