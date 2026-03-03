@@ -26,3 +26,17 @@ CREATE TABLE IF NOT EXISTS apk_releases (
     changelog TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS scrobble_queue (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    artist VARCHAR(128) NOT NULL,
+    track VARCHAR(128) NOT NULL,
+    duration INTEGER NOT NULL DEFAULT 0,
+    played_at INTEGER NOT NULL DEFAULT 0,
+    now_playing BOOLEAN NOT NULL DEFAULT FALSE,
+    retries INTEGER NOT NULL DEFAULT 0,
+    processed BOOLEAN NOT NULL DEFAULT FALSE,
+    error VARCHAR(255) NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

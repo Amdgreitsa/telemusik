@@ -11,8 +11,16 @@ class ChangelogItem(BaseModel):
     changelog: str
 
 
+class AuthRequest(BaseModel):
+    telegram_user_id: str
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = 'bearer'
+
+
 class ScrobbleNowPlaying(BaseModel):
-    user_id: int
     artist: str
     track: str
     duration: int
@@ -20,3 +28,8 @@ class ScrobbleNowPlaying(BaseModel):
 
 class ScrobbleSubmit(ScrobbleNowPlaying):
     played_at: int
+
+
+class QueueProcessResponse(BaseModel):
+    processed: int
+    failed: int

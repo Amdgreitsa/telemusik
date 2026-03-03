@@ -25,7 +25,9 @@ Backend endpoints:
 - `GET /app/changelog`
 - `POST /scrobble/now-playing`
 - `POST /scrobble/submit`
-- `GET /recommendations/{user_id}`
+- `POST /scrobble/process?session_key=...`
+- `GET /recommendations` (JWT required)
+- `POST /auth/telegram`
 
 ### 2) Website
 
@@ -84,3 +86,10 @@ Server stores only:
 ## CI
 
 GitHub Actions workflow runs backend tests and frontend lint/build checks.
+
+## Implemented hardening (v2)
+
+- JWT auth for user-scoped API operations (`/auth/telegram`, protected recommendations/scrobble endpoints).
+- Persistent scrobble queue table with retry counters and manual processing endpoint.
+- Android Room DAOs and bottom-navigation shell to replace plain single-screen placeholder.
+- Website technical auth page for API token bootstrap/testing.

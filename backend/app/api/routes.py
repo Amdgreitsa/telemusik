@@ -1,9 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.security import create_token, get_current_user
 from app.db.session import get_db
-from app.schemas.schemas import ApkInfo, ChangelogItem, ScrobbleNowPlaying, ScrobbleSubmit
-from app.services import apk_service, recommendation_service
+from app.models.models import User
+from app.schemas.schemas import (
+    ApkInfo,
+    AuthRequest,
+    AuthResponse,
+    ChangelogItem,
+    QueueProcessResponse,
+    ScrobbleNowPlaying,
+    ScrobbleSubmit,
+)
+from app.services import apk_service, recommendation_service, scrobble_service, user_service
 
 router = APIRouter()
 
@@ -11,6 +21,12 @@ router = APIRouter()
 @router.get('/health')
 def health():
     return {'status': 'ok'}
+
+
+@router.post('/auth/telegram', response_model=AuthResponse)
+def auth_telegram(payload: AuthRequest, db: Session = Depends(get_db)):
+    user = user_service.get_or_create_user(db, payload.telegram_user_id)
+    return AuthResponse(access_token=create_token(user.id))
 
 
 @router.get('/app/latest', response_model=ApkInfo)
@@ -26,17 +42,39 @@ def app_changelog(db: Session = Depends(get_db)):
     return [ChangelogItem(version=r.version_name, changelog=r.changelog) for r in apk_service.get_changelog(db)]
 
 
-@router.get('/recommendations/{user_id}')
-def recommendations(user_id: int, db: Session = Depends(get_db)):
-    return {'items': recommendation_service.get_user_recommendations(db, user_id)}
+@router.get('/recommendations')
+def recommendations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return {'items': recommendation_service.get_user_recommendations(db, current_user.id)}
 
 
 @router.post('/scrobble/now-playing')
-async def scrobble_now_playing(payload: ScrobbleNowPlaying):
-    # session keys are intentionally not persisted in this example; fetch from secure store in production
-    return {'queued': True, 'payload': payload.model_dump()}
+async def scrobble_now_playing(
+    payload: ScrobbleNowPlaying,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = scrobble_service.enqueue_now_playing(db, current_user, payload.artist, payload.track, payload.duration)
+    return {'queued': True, 'queue_id': item.id}
 
 
 @router.post('/scrobble/submit')
-async def scrobble_submit(payload: ScrobbleSubmit):
-    return {'queued': True, 'payload': payload.model_dump()}
+async def scrobble_submit(
+    payload: ScrobbleSubmit,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item = scrobble_service.enqueue_scrobble(
+        db,
+        current_user,
+        payload.artist,
+        payload.track,
+        payload.duration,
+        payload.played_at,
+    )
+    return {'queued': True, 'queue_id': item.id}
+
+
+@router.post('/scrobble/process', response_model=QueueProcessResponse)
+async def scrobble_process(session_key: str, db: Session = Depends(get_db)):
+    processed, failed = await scrobble_service.process_queue(db, session_key)
+    return QueueProcessResponse(processed=processed, failed=failed)
