@@ -1,0 +1,124 @@
+# TeleMusik Monorepo
+
+Production-oriented platform for a Telegram-powered music streaming Android client with backend services and APK distribution website.
+
+## Components
+
+- `android-app/` — Android app (Kotlin, Material 3, ExoPlayer, TDLib, Room, WorkManager)
+- `backend/` — FastAPI backend (Ubuntu 24.04 target, PostgreSQL, Redis, recommendations + Last.fm scrobbling queue)
+- `website/` — Next.js 14 + Tailwind marketing/download website
+- `deploy/` — Nginx, Docker Compose, operational configs
+
+## Quick start (local)
+
+### 1) Backend
+
+```bash
+cd backend
+cp .env.example .env
+docker compose up -d --build
+```
+
+Backend endpoints:
+- `GET /health`
+- `GET /app/latest`
+- `GET /app/changelog`
+- `POST /scrobble/now-playing`
+- `POST /scrobble/submit`
+- `POST /scrobble/process?session_key=...`
+- `GET /recommendations` (JWT required)
+- `POST /auth/telegram`
+
+### 2) Website
+
+```bash
+cd website
+cp .env.example .env.local
+npm ci
+npm run dev
+```
+
+### 3) Android app
+
+Open `android-app/` in Android Studio (Panda or newer) and run on Android 8.0+.
+
+Set `local.properties`:
+
+```properties
+telegram.apiId=YOUR_TD_API_ID
+telegram.apiHash=YOUR_TD_API_HASH
+backend.baseUrl=https://api.example.com
+lastfm.apiKey=YOUR_LASTFM_API_KEY
+lastfm.apiSecret=YOUR_LASTFM_API_SECRET
+```
+
+## VPS deployment (Ubuntu 24.04)
+
+1. Install Docker + Compose plugin.
+2. Copy repository to `/opt/telemusik`.
+3. Put release APK in `/var/www/app/releases/telemusik-vX.Y.Z.apk`.
+4. Configure `.env` in `backend/` and `website/.env.local`.
+5. Run:
+
+```bash
+cd /opt/telemusik/deploy
+docker compose up -d --build
+```
+
+Nginx handles HTTPS, redirect HTTP→HTTPS, gzip and cache headers.
+
+## Data policy
+
+Server does **not** store Telegram audio files.
+Server stores only:
+- user identifiers
+- listening stats / history
+- recommendation artifacts
+- APK metadata/changelog
+
+## Security highlights
+
+- Android encrypted offline files + checksum validation
+- Last.fm session key stored encrypted (Android Keystore / backend secret management)
+- JWT for backend client APIs
+- Rate limiting and structured audit logging in backend
+
+## CI
+
+GitHub Actions workflow runs backend tests and frontend lint/build checks.
+
+## Implemented hardening (v2)
+
+- JWT auth for user-scoped API operations (`/auth/telegram`, protected recommendations/scrobble endpoints).
+- Persistent scrobble queue table with retry counters and manual processing endpoint.
+- Android Room DAOs and bottom-navigation shell to replace plain single-screen placeholder.
+- Website technical auth page for API token bootstrap/testing.
+
+
+## Production readiness upgrades
+
+- API hardening: JWT issuer/audience validation, admin-protected scrobble queue processing, request-id middleware and structured request logging.
+- Data consistency: scrobble queue idempotency via fingerprint unique constraint to prevent duplicate submits.
+- Resilience: Last.fm client includes retry with exponential backoff for transient failures.
+- Android media service: upgraded from plain `Service` to `MediaSessionService` with ExoPlayer lifecycle management and launcher activity manifest wiring.
+- Website observability: landing page now shows backend health status from API.
+- Android TDLib client now tracks auth states (`phone/code/password/ready`) and maps channel audio history to structured track metadata.
+- Offline repository now includes checksum verification and cache limit enforcement with oldest-first eviction.
+- Android UI baseline completed for Channels/Player/Profile/Settings with interactive controls and in-app navigation wiring.
+- Recommendations service now falls back to listening-history aggregation when explicit model rows are absent.
+
+
+## Android Studio/Gradle JVM note (Windows)
+
+If Android Studio shows: *"It is not possible to use the currently selected Gradle JVM..."*
+
+1. Open **Settings → Build, Execution, Deployment → Build Tools → Gradle**.
+2. Set **Gradle JDK = Embedded JDK 17** (or another valid local JDK 17 installation).
+3. Run wrapper commands from `android-app/`:
+
+```bash
+./gradlew --version
+./gradlew tasks
+```
+
+This repository includes Gradle Wrapper scripts/config (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.properties`) pinned to Gradle 8.7 for AGP 8.5.x compatibility. In binary-restricted PR systems, regenerate `gradle-wrapper.jar` locally with `gradle wrapper --gradle-version 8.7`.

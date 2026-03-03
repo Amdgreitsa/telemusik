@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+.next/
+
+# env
+.env
+.env.local
+
+# Android/Gradle
+.gradle/
+**/build/
+local.properties
+
+# Wrapper binary (excluded for binary-restricted PR environments)
+android-app/gradle/wrapper/gradle-wrapper.jar
