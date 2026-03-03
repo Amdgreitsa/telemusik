@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -18,6 +18,9 @@ bearer = HTTPBearer(auto_error=True)
 def create_token(user_id: int) -> str:
     payload = {
         'sub': str(user_id),
+        'iss': settings.jwt_issuer,
+        'aud': settings.jwt_audience,
+        'iat': datetime.now(UTC),
         'exp': datetime.now(UTC) + timedelta(hours=TOKEN_TTL_HOURS),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
@@ -28,7 +31,13 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     try:
-        payload = jwt.decode(credentials.credentials, settings.jwt_secret, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.jwt_secret,
+            algorithms=[ALGORITHM],
+            issuer=settings.jwt_issuer,
+            audience=settings.jwt_audience,
+        )
         user_id = int(payload['sub'])
     except (JWTError, KeyError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid token') from exc
@@ -37,3 +46,8 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='User not found')
     return user
+
+
+def require_admin_key(x_admin_key: str = Header(default='')) -> None:
+    if x_admin_key != settings.admin_api_key:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Admin key required')

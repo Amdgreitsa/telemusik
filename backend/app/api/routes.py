@@ -1,7 +1,8 @@
+from sqlalchemy import text
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.security import create_token, get_current_user
+from app.core.security import create_token, get_current_user, require_admin_key
 from app.db.session import get_db
 from app.models.models import User
 from app.schemas.schemas import (
@@ -19,7 +20,8 @@ router = APIRouter()
 
 
 @router.get('/health')
-def health():
+def health(db: Session = Depends(get_db)):
+    db.execute(text('SELECT 1'))
     return {'status': 'ok'}
 
 
@@ -74,7 +76,7 @@ async def scrobble_submit(
     return {'queued': True, 'queue_id': item.id}
 
 
-@router.post('/scrobble/process', response_model=QueueProcessResponse)
+@router.post('/scrobble/process', response_model=QueueProcessResponse, dependencies=[Depends(require_admin_key)])
 async def scrobble_process(session_key: str, db: Session = Depends(get_db)):
     processed, failed = await scrobble_service.process_queue(db, session_key)
     return QueueProcessResponse(processed=processed, failed=failed)

@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     telegram_user_id VARCHAR(64) UNIQUE NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS listening_history (
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS listening_history (
     user_id INTEGER NOT NULL REFERENCES users(id),
     track_id VARCHAR(128) NOT NULL,
     listened_seconds INTEGER NOT NULL,
-    listened_at TIMESTAMP NOT NULL DEFAULT NOW()
+    listened_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS recommendations (
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS apk_releases (
     version_name VARCHAR(32) UNIQUE NOT NULL,
     file_name VARCHAR(256) NOT NULL,
     changelog TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS scrobble_queue (
@@ -35,8 +35,12 @@ CREATE TABLE IF NOT EXISTS scrobble_queue (
     duration INTEGER NOT NULL DEFAULT 0,
     played_at INTEGER NOT NULL DEFAULT 0,
     now_playing BOOLEAN NOT NULL DEFAULT FALSE,
+    fingerprint VARCHAR(64) NOT NULL,
     retries INTEGER NOT NULL DEFAULT 0,
     processed BOOLEAN NOT NULL DEFAULT FALSE,
     error VARCHAR(255) NOT NULL DEFAULT '',
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_scrobble_user_fingerprint UNIQUE (user_id, fingerprint)
 );
+
+CREATE INDEX IF NOT EXISTS idx_scrobble_queue_unprocessed ON scrobble_queue (processed, retries, created_at);

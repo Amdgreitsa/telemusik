@@ -93,3 +93,12 @@ GitHub Actions workflow runs backend tests and frontend lint/build checks.
 - Persistent scrobble queue table with retry counters and manual processing endpoint.
 - Android Room DAOs and bottom-navigation shell to replace plain single-screen placeholder.
 - Website technical auth page for API token bootstrap/testing.
+
+
+## Production readiness upgrades
+
+- API hardening: JWT issuer/audience validation, admin-protected scrobble queue processing, request-id middleware and structured request logging.
+- Data consistency: scrobble queue idempotency via fingerprint unique constraint to prevent duplicate submits.
+- Resilience: Last.fm client includes retry with exponential backoff for transient failures.
+- Android media service: upgraded from plain `Service` to `MediaSessionService` with ExoPlayer lifecycle management and launcher activity manifest wiring.
+- Website observability: landing page now shows backend health status from API.
