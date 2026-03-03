@@ -15,3 +15,7 @@ dependencyResolutionManagement {
 }
 rootProject.name = "TeleMusik"
 include(":app")
+
+if (file("tdlib").exists()) {
+    include(":tdlib")
+}

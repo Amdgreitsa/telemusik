@@ -122,3 +122,144 @@ If Android Studio shows: *"It is not possible to use the currently selected Grad
 ```
 
 This repository includes Gradle Wrapper scripts/config (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.properties`) pinned to Gradle 8.7 for AGP 8.5.x compatibility. In binary-restricted PR systems, regenerate `gradle-wrapper.jar` locally with `gradle wrapper --gradle-version 8.7`.
+
+
+## Local TDLib module compatibility (Android Studio)
+
+If you include a local `:tdlib` module and get errors:
+- `Incorrect package=... in AndroidManifest.xml`
+- `package android.support.annotation does not exist`
+
+Apply these fixes inside `android-app/tdlib`:
+
+1. In `src/main/AndroidManifest.xml`, remove `package="..."` attribute from `<manifest>`.
+2. In `src/main/java/.../TdApi.java`, replace:
+   - `android.support.annotation.Nullable` -> `androidx.annotation.Nullable`
+   - `android.support.annotation.IntDef` -> `androidx.annotation.IntDef`
+3. In `tdlib/build.gradle.kts`, ensure:
+
+```kotlin
+plugins { id("com.android.library") }
+
+android {
+    namespace = "org.drinkless.td.libcore"
+    compileSdk = 34
+    defaultConfig { minSdk = 26 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation("androidx.annotation:annotation:1.8.2")
+}
+```
+
+The app build is configured to automatically use local `:tdlib` when the module exists, otherwise it falls back to Maven dependency `org.drinkless.tdlib:tdlib`.
+
+
+## APK build guide (max detailed)
+
+### Prerequisites (Windows + Android Studio Panda)
+
+1. Install **Android Studio Panda**.
+2. Install SDK components:
+   - Android SDK Platform 34
+   - Android SDK Build-Tools (latest for API 34)
+   - NDK and CMake (if your local TDLib module compiles native libs)
+3. Set Gradle JDK to **JDK 17**:
+   - `Settings -> Build, Execution, Deployment -> Build Tools -> Gradle -> Gradle JDK`
+4. Open project root: `android-app/`.
+
+### TDLib mode selection
+
+The app supports two modes automatically:
+
+- **Remote Maven TDLib**: default fallback `org.drinkless.tdlib:tdlib:1.8.40`
+- **Local module TDLib**: if `android-app/tdlib` exists, Gradle uses `project(":tdlib")`
+
+### If you use local `:tdlib` and get compile errors
+
+Apply these mandatory fixes inside local module:
+
+1. `tdlib/src/main/AndroidManifest.xml`:
+   - remove `package="..."` from `<manifest>` root
+2. In generated/legacy `TdApi.java`:
+   - `android.support.annotation.Nullable` -> `androidx.annotation.Nullable`
+   - `android.support.annotation.IntDef` -> `androidx.annotation.IntDef`
+3. `tdlib/build.gradle.kts` must contain:
+   - `plugins { id("com.android.library") }`
+   - `android { namespace = "org.drinkless.td.libcore"; compileSdk = 34; defaultConfig { minSdk = 26 } }`
+   - Java 17 compile options
+   - dependency `implementation("androidx.annotation:annotation:1.8.2")`
+
+### Debug APK build
+
+From terminal:
+
+```bash
+cd android-app
+./scripts/build-apk.sh debug
+```
+
+Output:
+- `android-app/app/build/outputs/apk/debug/app-debug.apk`
+
+Windows PowerShell:
+
+```powershell
+cd android-app
+./scripts/build-apk.ps1 -BuildType debug
+```
+
+### Release APK build (signed)
+
+1. Create keystore (one-time):
+
+```bash
+keytool -genkeypair -v -keystore telemusik-release.jks -alias telemusik -keyalg RSA -keysize 2048 -validity 10000
+```
+
+2. Create `android-app/keystore.properties`:
+
+```properties
+storeFile=telemusik-release.jks
+storePassword=YOUR_STORE_PASSWORD
+keyAlias=telemusik
+keyPassword=YOUR_KEY_PASSWORD
+```
+
+3. Build signed release APK:
+
+```bash
+cd android-app
+./scripts/build-apk.sh release
+```
+
+Windows PowerShell:
+
+```powershell
+cd android-app
+./scripts/build-apk.ps1 -BuildType release
+```
+
+Output:
+- `android-app/app/build/outputs/apk/release/app-release.apk`
+
+### Verify APK signature
+
+```bash
+apksigner verify --verbose android-app/app/build/outputs/apk/release/app-release.apk
+```
+
+### Common failures and fixes
+
+- **"currently selected Gradle JVM"**:
+  - switch Gradle JDK to embedded/local JDK 17 in Android Studio.
+- **`Incorrect package="..." in tdlib manifest`**:
+  - remove `package` attribute from local tdlib manifest.
+- **`android.support.annotation` not found**:
+  - migrate imports to `androidx.annotation` and add `androidx.annotation` dependency in tdlib module.
+- **`next: not found` or Python module missing in local checks**:
+  - run `npm ci` in `website/` and `pip install -r backend/requirements.txt` in backend environment.
