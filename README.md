@@ -253,6 +253,30 @@ Output:
 apksigner verify --verbose android-app/app/build/outputs/apk/release/app-release.apk
 ```
 
+
+### One-command auto-fix for local TDLib module
+
+If your local `:tdlib` module throws exactly the errors you pasted (`Incorrect package=...` and `android.support.annotation...`), run:
+
+```bash
+cd android-app
+./scripts/fix-local-tdlib.sh
+./gradlew :app:assembleDebug
+```
+
+Windows PowerShell:
+
+```powershell
+cd android-app
+./scripts/fix-local-tdlib.ps1
+./gradlew.bat :app:assembleDebug
+```
+
+The fixer script:
+- removes deprecated `package="..."` from `tdlib/src/main/AndroidManifest.xml`
+- migrates `android.support.annotation.{Nullable,IntDef}` to `androidx.annotation.*` in `TdApi.java`
+- ensures `tdlib/build.gradle.kts` contains namespace and `androidx.annotation` dependency
+
 ### Common failures and fixes
 
 - **"currently selected Gradle JVM"**:
